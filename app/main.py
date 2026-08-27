@@ -15,7 +15,10 @@ app = FastAPI(title="Student Management API")
 # Allow the React frontend (default CRA dev server) to call this API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://15.252.140.18",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
