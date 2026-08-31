@@ -1,0 +1,85 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'hariharan1112/student-backend'
+        CONTAINER_NAME = 'student-backend'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                    docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .
+                    docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
+                '''
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )
+                ]) {
+                    sh '''
+                        echo "$DOCKER_PASSWORD" | docker login \
+                            -u "$DOCKER_USERNAME" \
+                            --password-stdin
+
+                        docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+                        docker push ${IMAGE_NAME}:latest
+
+                        docker logout
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Backend') {
+            steps {
+                sh '''
+                    docker pull ${IMAGE_NAME}:latest
+
+                    docker rm -f ${CONTAINER_NAME} 2>/dev/null || true
+
+                    docker run -d \
+                        --name ${CONTAINER_NAME} \
+                        --network student-network \
+                        -e DATABASE_URL="postgresql://student:student123@student-postgres:5432/studentdb" \
+                        -p 8000:8000 \
+                        ${IMAGE_NAME}:latest
+                '''
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                sh '''
+                    sleep 5
+                    curl -f http://localhost:8000/
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Backend build and deployment successful!'
+        }
+
+        failure {
+            echo 'Backend build or deployment failed!'
+        }
+    }
+}
