@@ -7,7 +7,7 @@ from typing import List
 from . import models, schemas, crud
 from .database import engine, get_db
 
-# Create tables automatically on startup
+# Create tables automatically on the startup
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Student Management API")
