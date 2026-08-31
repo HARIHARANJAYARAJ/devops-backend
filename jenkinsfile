@@ -4,6 +4,7 @@ pipeline {
     environment {
         IMAGE_NAME = 'hariharan1112/student-backend'
         CONTAINER_NAME = 'student-backend'
+        DATABASE_URL = 'postgresql://student:student123@student-postgres:5432/studentdb'
     }
 
     stages {
@@ -46,19 +47,29 @@ pipeline {
             }
         }
 
+        stage('Database Migration') {
+            steps {
+                sh '''
+                    docker run --rm \
+                        --network student-network \
+                        -e DATABASE_URL="${DATABASE_URL}" \
+                        ${IMAGE_NAME}:${BUILD_NUMBER} \
+                        alembic upgrade head
+                '''
+            }
+        }
+
         stage('Deploy Backend') {
             steps {
                 sh '''
-                    docker pull ${IMAGE_NAME}:latest
-
                     docker rm -f ${CONTAINER_NAME} 2>/dev/null || true
 
                     docker run -d \
                         --name ${CONTAINER_NAME} \
                         --network student-network \
-                        -e DATABASE_URL="postgresql://student:student123@student-postgres:5432/studentdb" \
+                        -e DATABASE_URL="${DATABASE_URL}" \
                         -p 8000:8000 \
-                        ${IMAGE_NAME}:latest
+                        ${IMAGE_NAME}:${BUILD_NUMBER}
                 '''
             }
         }
@@ -68,6 +79,7 @@ pipeline {
                 sh '''
                     sleep 5
                     curl -f http://localhost:8000/
+                    curl -f http://localhost:8000/students
                 '''
             }
         }
@@ -75,11 +87,11 @@ pipeline {
 
     post {
         success {
-            echo 'Backend build and deployment successful!'
+            echo 'Backend build, database migration, and deployment successful!'
         }
 
         failure {
-            echo 'Backend build or deployment failed!'
+            echo 'Backend build, migration, or deployment failed!'
         }
     }
 }
