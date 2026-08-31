@@ -15,3 +15,4 @@ class Student(Base):
     year = Column(Integer, nullable=False)
     address = Column(String(255), nullable=True)
     city = Column(String(100), nullable=True)
+    nativeplace = Column(...)
