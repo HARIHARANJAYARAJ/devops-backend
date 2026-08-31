@@ -9,18 +9,14 @@ from .database import engine, get_db
 from .schema_sync import sync_database_schema
 
 
-# Automatically create missing tables/columns
+# Automatically create missing tables and add missing columns
 sync_database_schema(engine, models.Base)
 
 
 app = FastAPI(title="Student Management API")
 
-# Create tables automatically on the startup
-models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Student Management API")
-
-# Allow the React frontend (default CRA dev server) to call this API
+# Allow the React frontend to call this API
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -32,47 +28,110 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 def root():
-    return {"message": "Student Management API is running"}
+    return {
+        "message": "Student Management API is running"
+    }
 
 
-@app.get("/students", response_model=List[schemas.StudentOut])
-def read_students(db: Session = Depends(get_db)):
+@app.get(
+    "/students",
+    response_model=List[schemas.StudentOut]
+)
+def read_students(
+    db: Session = Depends(get_db)
+):
     return crud.get_students(db)
 
 
-@app.get("/students/{student_id}", response_model=schemas.StudentOut)
-def read_student(student_id: int, db: Session = Depends(get_db)):
-    student = crud.get_student(db, student_id)
+@app.get(
+    "/students/{student_id}",
+    response_model=schemas.StudentOut
+)
+def read_student(
+    student_id: int,
+    db: Session = Depends(get_db)
+):
+    student = crud.get_student(
+        db,
+        student_id
+    )
+
     if not student:
-        raise HTTPException(status_code=404, detail="Student not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Student not found"
+        )
+
     return student
 
 
-@app.post("/students", response_model=schemas.StudentOut, status_code=201)
-def create_student(student: schemas.StudentCreate, db: Session = Depends(get_db)):
+@app.post(
+    "/students",
+    response_model=schemas.StudentOut,
+    status_code=201
+)
+def create_student(
+    student: schemas.StudentCreate,
+    db: Session = Depends(get_db)
+):
     try:
-        return crud.create_student(db, student)
+        return crud.create_student(
+            db,
+            student
+        )
+
     except IntegrityError:
         db.rollback()
+
         raise HTTPException(
             status_code=400,
-            detail="A student with this roll number or email already exists",
+            detail="A student with this roll number or email already exists"
         )
 
 
-@app.put("/students/{student_id}", response_model=schemas.StudentOut)
-def update_student(student_id: int, student: schemas.StudentUpdate, db: Session = Depends(get_db)):
-    updated = crud.update_student(db, student_id, student)
+@app.put(
+    "/students/{student_id}",
+    response_model=schemas.StudentOut
+)
+def update_student(
+    student_id: int,
+    student: schemas.StudentUpdate,
+    db: Session = Depends(get_db)
+):
+    updated = crud.update_student(
+        db,
+        student_id,
+        student
+    )
+
     if not updated:
-        raise HTTPException(status_code=404, detail="Student not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Student not found"
+        )
+
     return updated
 
 
 @app.delete("/students/{student_id}")
-def delete_student(student_id: int, db: Session = Depends(get_db)):
-    deleted = crud.delete_student(db, student_id)
+def delete_student(
+    student_id: int,
+    db: Session = Depends(get_db)
+):
+    deleted = crud.delete_student(
+        db,
+        student_id
+    )
+
     if not deleted:
-        raise HTTPException(status_code=404, detail="Student not found")
-    return {"message": "Student deleted successfully"}
+        raise HTTPException(
+            status_code=404,
+            detail="Student not found"
+        )
+
+    return {
+        "message": "Student deleted successfully"
+    }
