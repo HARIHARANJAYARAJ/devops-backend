@@ -12,7 +12,7 @@ class StudentBase(BaseModel):
     department: str
     year: int
     address: Optional[str] = None
-
+    city: Optional[str] = None
 
 class StudentCreate(StudentBase):
     pass

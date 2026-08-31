@@ -14,3 +14,4 @@ class Student(Base):
     department = Column(String(100), nullable=False)
     year = Column(Integer, nullable=False)
     address = Column(String(255), nullable=True)
+    city = Column(String(100), nullable=True)
