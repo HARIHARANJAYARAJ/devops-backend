@@ -15,6 +15,7 @@ class StudentBase(BaseModel):
     city: Optional[str] = None
     nativeplace: Optional[str] = None
     tenth_mark: Optional[int] = None
+    twelfth_mark: Optional[int] = None
 class StudentCreate(StudentBase):
     pass
 
