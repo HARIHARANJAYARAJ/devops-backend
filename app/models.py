@@ -16,3 +16,4 @@ class Student(Base):
     address = Column(String(255), nullable=True)
     city = Column(String(100), nullable=True)
     nativeplace = Column(String(100), nullable=True)
+    tenth_mark = Column(Integer, nullable=True)
