@@ -78,7 +78,9 @@ pipeline {
             steps {
                 sh '''
                     sleep 5
+
                     curl -f http://localhost:8000/
+
                     curl -f http://localhost:8000/students
                 '''
             }
@@ -87,11 +89,11 @@ pipeline {
 
     post {
         success {
-            echo 'Backend build, database migration, and deployment successful!'
+            echo 'Backend build, database migration, deployment, and health check successful!'
         }
 
         failure {
-            echo 'Backend build, migration, or deployment failed!'
+            echo 'Backend pipeline failed!'
         }
     }
 }
