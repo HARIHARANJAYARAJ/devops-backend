@@ -6,11 +6,6 @@ from typing import List
 
 from . import models, schemas, crud
 from .database import engine, get_db
-from .schema_sync import sync_database_schema
-
-
-# Automatically create missing tables and add missing columns
-sync_database_schema(engine, models.Base)
 
 
 app = FastAPI(title="Student Management API")
@@ -21,7 +16,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-         "http://13.233.160.141",
+        "http://35.154.164.244",
     ],
     allow_credentials=True,
     allow_methods=["*"],
