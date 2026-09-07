@@ -3,7 +3,6 @@
 Revision ID: 0b916b3215a7
 Revises:
 Create Date: 2026-08-31 13:47:08.041086
-
 """
 
 from typing import Sequence, Union
@@ -12,7 +11,6 @@ from alembic import op
 import sqlalchemy as sa
 
 
-# revision identifiers, used by Alembic.
 revision: str = "0b916b3215a7"
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
@@ -20,24 +18,18 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Create the initial students table."""
-
     op.create_table(
         "students",
+
         sa.Column(
             "id",
             sa.Integer(),
+            primary_key=True,
             nullable=False
         ),
 
         sa.Column(
-            "name",
-            sa.String(length=100),
-            nullable=False
-        ),
-
-        sa.Column(
-            "email",
+            "full_name",
             sa.String(length=100),
             nullable=False
         ),
@@ -49,14 +41,38 @@ def upgrade() -> None:
         ),
 
         sa.Column(
+            "email",
+            sa.String(length=100),
+            nullable=False
+        ),
+
+        sa.Column(
+            "phone",
+            sa.String(length=20),
+            nullable=False
+        ),
+
+        sa.Column(
+            "date_of_birth",
+            sa.Date(),
+            nullable=True
+        ),
+
+        sa.Column(
             "department",
             sa.String(length=100),
-            nullable=True
+            nullable=False
         ),
 
         sa.Column(
             "year",
             sa.Integer(),
+            nullable=False
+        ),
+
+        sa.Column(
+            "address",
+            sa.String(length=255),
             nullable=True
         ),
 
@@ -66,7 +82,23 @@ def upgrade() -> None:
             nullable=True
         ),
 
-        sa.PrimaryKeyConstraint("id"),
+        sa.Column(
+            "nativeplace",
+            sa.String(length=100),
+            nullable=True
+        ),
+
+        sa.Column(
+            "tenth_mark",
+            sa.Integer(),
+            nullable=True
+        ),
+
+        sa.Column(
+            "twelfth_mark",
+            sa.Integer(),
+            nullable=True
+        ),
 
         sa.UniqueConstraint(
             "email",
@@ -81,6 +113,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Drop the students table."""
-
     op.drop_table("students")
