@@ -3,8 +3,8 @@ pipeline {
 
     environment {
         IMAGE_NAME = 'hariharan1112/student-backend'
-        CONTAINER_NAME = 'student-backend'
-        DATABASE_URL = 'postgresql://student:student123@student-postgres:5432/studentdb'
+        SERVICE_NAME = 'student-backend'
+        DATABASE_URL = 'postgresql://student:studentpass@postgres:5432/studentdb'
     }
 
     stages {
@@ -18,8 +18,10 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh '''
-                    docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .
-                    docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
+                    docker build \
+                        -t ${IMAGE_NAME}:${BUILD_NUMBER} \
+                        -t ${IMAGE_NAME}:latest \
+                        .
                 '''
             }
         }
@@ -59,17 +61,66 @@ pipeline {
             }
         }
 
-        stage('Deploy Backend') {
+        stage('Deploy Backend to Swarm') {
             steps {
                 sh '''
-                    docker rm -f ${CONTAINER_NAME} 2>/dev/null || true
+                    if docker service inspect ${SERVICE_NAME} >/dev/null 2>&1; then
 
-                    docker run -d \
-                        --name ${CONTAINER_NAME} \
-                        --network student-network \
-                        -e DATABASE_URL="${DATABASE_URL}" \
-                        -p 8000:8000 \
-                        ${IMAGE_NAME}:${BUILD_NUMBER}
+                        echo "Updating existing Swarm service..."
+
+                        docker service update \
+                            --image ${IMAGE_NAME}:${BUILD_NUMBER} \
+                            --env-add DATABASE_URL="${DATABASE_URL}" \
+                            --update-parallelism 1 \
+                            --update-delay 5s \
+                            --update-order start-first \
+                            --rollback-parallelism 1 \
+                            --rollback-order start-first \
+                            ${SERVICE_NAME}
+
+                    else
+
+                        echo "Creating new Swarm service..."
+
+                        docker service create \
+                            --name ${SERVICE_NAME} \
+                            --network student-network \
+                            --env DATABASE_URL="${DATABASE_URL}" \
+                            --publish published=8000,target=8000 \
+                            --replicas 2 \
+                            --update-parallelism 1 \
+                            --update-delay 5s \
+                            --update-order start-first \
+                            --rollback-parallelism 1 \
+                            --rollback-order start-first \
+                            ${IMAGE_NAME}:${BUILD_NUMBER}
+
+                    fi
+                '''
+            }
+        }
+
+        stage('Wait for Swarm') {
+            steps {
+                sh '''
+                    echo "Waiting for backend replicas..."
+
+                    for i in $(seq 1 30); do
+
+                        RUNNING=$(docker service ls \
+                            --filter name=${SERVICE_NAME} \
+                            --format "{{.Replicas}}")
+
+                        echo "Backend replicas: ${RUNNING}"
+
+                        if [ "$RUNNING" = "2/2" ]; then
+                            echo "Backend is running with 2/2 replicas."
+                            break
+                        fi
+
+                        sleep 2
+
+                    done
                 '''
             }
         }
@@ -77,11 +128,49 @@ pipeline {
         stage('Health Check') {
             steps {
                 sh '''
-                    sleep 5
+                    echo "Checking backend API..."
 
-                    curl -f http://localhost:8000/
+                    for i in $(seq 1 30); do
 
-                    curl -f http://localhost:8000/students
+                        if curl -fsS http://localhost:8000/ >/dev/null; then
+                            echo "Backend health check: SUCCESS"
+                            curl -fsS http://localhost:8000/
+                            break
+                        fi
+
+                        echo "Waiting for backend API..."
+                        sleep 2
+
+                        if [ "$i" -eq 30 ]; then
+                            echo "Backend health check FAILED"
+                            exit 1
+                        fi
+
+                    done
+                '''
+            }
+        }
+
+        stage('Show Swarm Status') {
+            steps {
+                sh '''
+                    echo "======================================"
+                    echo "BACKEND SWARM SERVICE"
+                    echo "======================================"
+
+                    docker service ls
+
+                    echo ""
+                    echo "======================================"
+                    echo "BACKEND TASKS"
+                    echo "======================================"
+
+                    docker service ps ${SERVICE_NAME}
+
+                    echo ""
+                    echo "======================================"
+                    echo "BACKEND DEPLOYMENT SUCCESSFUL"
+                    echo "======================================"
                 '''
             }
         }
@@ -89,11 +178,11 @@ pipeline {
 
     post {
         success {
-            echo 'Backend build, database migration, deployment, and health check successful!'
+            echo 'Backend CI/CD pipeline completed successfully!'
         }
 
         failure {
-            echo 'Backend pipeline failed!'
+            echo 'Backend CI/CD pipeline FAILED!'
         }
     }
 }
