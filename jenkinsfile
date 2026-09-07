@@ -147,7 +147,7 @@ pipeline {
                             --connect-timeout 2 \
                             --max-time 3 \
                             -fsS \
-                            http://localhost:8000/; then
+                            http://35.154.164.244:8000/; then
 
                             echo ""
                             echo "Backend health check: SUCCESS"
