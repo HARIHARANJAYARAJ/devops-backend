@@ -52,11 +52,15 @@ pipeline {
         stage('Database Migration') {
             steps {
                 sh '''
-                    docker run --rm \
+                    echo "Running database migration..."
+
+                    timeout 30s docker run --rm \
                         --network student-network \
                         -e DATABASE_URL="${DATABASE_URL}" \
                         ${IMAGE_NAME}:${BUILD_NUMBER} \
                         alembic upgrade head
+
+                    echo "Database migration completed."
                 '''
             }
         }
@@ -72,7 +76,7 @@ pipeline {
                             --image ${IMAGE_NAME}:${BUILD_NUMBER} \
                             --env-add DATABASE_URL="${DATABASE_URL}" \
                             --update-parallelism 1 \
-                            --update-delay 5s \
+                            --update-delay 2s \
                             --update-order start-first \
                             --rollback-parallelism 1 \
                             --rollback-order start-first \
@@ -89,7 +93,7 @@ pipeline {
                             --publish published=8000,target=8000 \
                             --replicas 2 \
                             --update-parallelism 1 \
-                            --update-delay 5s \
+                            --update-delay 2s \
                             --update-order start-first \
                             --rollback-parallelism 1 \
                             --rollback-order start-first \
@@ -115,12 +119,15 @@ pipeline {
 
                         if [ "$RUNNING" = "2/2" ]; then
                             echo "Backend is running with 2/2 replicas."
-                            break
+                            exit 0
                         fi
 
-                        sleep 2
-
+                        sleep 1
                     done
+
+                    echo "ERROR: Backend did not reach 2/2 replicas."
+                    docker service ps ${SERVICE_NAME}
+                    exit 1
                 '''
             }
         }
@@ -130,23 +137,44 @@ pipeline {
                 sh '''
                     echo "Checking backend API..."
 
-                    for i in $(seq 1 30); do
+                    SUCCESS=0
 
-                        if curl -fsS http://localhost:8000/ >/dev/null; then
+                    for i in $(seq 1 10); do
+
+                        echo "Health check attempt ${i}/10"
+
+                        if curl \
+                            --connect-timeout 2 \
+                            --max-time 3 \
+                            -fsS \
+                            http://localhost:8000/; then
+
+                            echo ""
                             echo "Backend health check: SUCCESS"
-                            curl -fsS http://localhost:8000/
+                            SUCCESS=1
                             break
                         fi
 
-                        echo "Waiting for backend API..."
-                        sleep 2
-
-                        if [ "$i" -eq 30 ]; then
-                            echo "Backend health check FAILED"
-                            exit 1
-                        fi
-
+                        echo "Backend not ready yet."
+                        sleep 1
                     done
+
+                    if [ "$SUCCESS" -ne 1 ]; then
+                        echo "Backend health check FAILED."
+                        echo ""
+                        echo "Swarm service status:"
+                        docker service ls
+
+                        echo ""
+                        echo "Backend tasks:"
+                        docker service ps ${SERVICE_NAME}
+
+                        echo ""
+                        echo "Backend logs:"
+                        docker service logs --tail 50 ${SERVICE_NAME}
+
+                        exit 1
+                    fi
                 '''
             }
         }
@@ -154,6 +182,7 @@ pipeline {
         stage('Show Swarm Status') {
             steps {
                 sh '''
+                    echo ""
                     echo "======================================"
                     echo "BACKEND SWARM SERVICE"
                     echo "======================================"
